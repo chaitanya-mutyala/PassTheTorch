@@ -76,7 +76,7 @@ export default function Post() {
                 {/* 💡 Edit/Delete Button Placement (Top Right) */}
                 {isAuthor && (
                     // Positioned absolutely within the content area
-                    <div className="absolute top-30 right-20 flex space-x-3 z-10">
+                    <div className="absolute top-60 right-20 flex space-x-3 z-10">
                         <Link to={`/edit-post/${post.$id}`}>
                             <Button 
                                 bgColor="bg-green-600 hover:bg-green-700" 
