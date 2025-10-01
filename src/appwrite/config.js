@@ -17,7 +17,7 @@ export class Service {
     // --- Core Post Operations (Main Collection) ---
 
     // Create Post (now excludes large content fields)
-    async createPost({ title, slug, content, featuredImage, status, userID, companyName, role, batchYear, placementType, tags }) {
+    async createPost({ title, slug, content, featuredImage, status, userID, companyName, role, batchYear, placementType, tags,dept }) {
         try {
             // NOTE: The 'content' field remains here, assumed to be the 'Intro/Summary'
             return await this.databases.createDocument(
@@ -35,6 +35,7 @@ export class Service {
                     batchYear,
                     placementType,
                     tags,
+                    dept
                 }
             );
         } catch (err) {
@@ -44,7 +45,7 @@ export class Service {
     }
 
     // Update Post (now excludes large content fields)
-    async updatePost(slug, { title, content, featuredImage, status, companyName, role, batchYear, placementType, tags }) {
+    async updatePost(slug, { title, content, featuredImage, status, companyName, role, batchYear, placementType, tags,dept }) {
         try {
             // NOTE: The 'content' field remains here, assumed to be the 'Intro/Summary'
             return await this.databases.updateDocument(
@@ -61,6 +62,7 @@ export class Service {
                     batchYear,
                     placementType,
                     tags,
+                    dept
                 }
             );
         } catch (err) {

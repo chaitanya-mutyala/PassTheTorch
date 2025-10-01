@@ -4,22 +4,21 @@ import { Button, Input, RTE, Select } from "../index.js";
 import appwriteService from "../../appwrite/config";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import DraftChatBot from "../ChatBot"; 
 
 export default function PostForm({ post }) {
     const { register, handleSubmit, watch, setValue, control, getValues } = useForm({
         defaultValues: {
-            title: post?.title || "",
+            title: post?.title || "", 
             slug: post?.$id || "",
-            // The original 'content' field is now used for the 'Intro'
             content: post?.content || "", 
             status: post?.status || "active",
-
-            // ✅ New fields for structured content
             companyName: post?.companyName || "",
             role: post?.role || "",
             batchYear: post?.batchYear || "",
             placementType: post?.placementType || "",
             tags: post?.tags?.join(", ") || "", 
+            dept: post?.dept || "", 
             postJourney: post?.postJourney || "",
             postExperiences: post?.postExperiences || "",
             postStrategy: post?.postStrategy || "",
@@ -31,6 +30,16 @@ export default function PostForm({ post }) {
     const userData = useSelector((state) => state.auth.userData);
 
     const submit = async (data) => {
+        
+        const userID = userData?.$id; 
+
+        // 🛑 CRITICAL CHECK: Block submission if user data is missing
+        if (!userID) {
+            alert("Error: You must be logged in to submit a placement story. Please refresh or log in again."); 
+            console.error("Submission blocked: User ID is missing in Redux store.");
+            return; // STOP the function here
+        }
+        
         try {
             // Step 1: Handle file upload
             let fileId = post?.featuredImage || null; 
@@ -45,24 +54,25 @@ export default function PostForm({ post }) {
                 }
             }
 
-            // ✅ transform tags from "a, b, c" → ["a","b","c"]
+            // Transform tags
             const tagsArray = data.tags
                 ? data.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
                 : [];
 
-            // 💡 Payloads are separated here for the two Appwrite collections
+            // Payloads separated for the two Appwrite collections
             const mainPostPayload = {
-                title: data.title,
+                title: data.title, 
                 slug: data.slug,
-                content: data.content, // Intro/Summary
+                content: data.content,
                 status: data.status,
                 companyName: data.companyName,
                 role: data.role,
                 batchYear: data.batchYear,
                 placementType: data.placementType,
                 tags: tagsArray,
-                userID: userData?.$id || null,
+                userID: userID, // 💡 Sending the now-validated userID
                 featuredImage: fileId,
+                dept: data.dept, 
             };
             
             const detailPayload = {
@@ -75,24 +85,15 @@ export default function PostForm({ post }) {
 
             let dbPost;
             if (post) {
-                // ------------------------------------
-                // 🟢 UPDATE LOGIC: TWO Appwrite Calls
-                // ------------------------------------
-                // 1. Update Main Article Document
+                // Update Main Article Document
                 dbPost = await appwriteService.updatePost(post.$id, mainPostPayload);
-                
-                // 2. Update Details Document
+                // Update Details Document
                 await appwriteService.updateArticleDetails(post.$id, detailPayload);
-
             } else {
-                // ------------------------------------
-                // 🟢 CREATE LOGIC: TWO Appwrite Calls
-                // ------------------------------------
-                // 1. Create Main Article Document
+                // Create Main Article Document
                 dbPost = await appwriteService.createPost(mainPostPayload);
-
                 if (dbPost) {
-                    // 2. Create Details Document using the new dbPost.$id
+                    // Create Details Document using the new dbPost.$id
                     await appwriteService.createArticleDetails({
                         ...detailPayload,
                         slug: dbPost.$id,
@@ -105,146 +106,183 @@ export default function PostForm({ post }) {
             }
         } catch (err) {
             console.error("Post submission error:", err);
-            // You might want to show a user-friendly error message here
+            // This will catch the Appwrite errors and any subsequent errors.
         }
     };
 
     const slugTransform = useCallback((value) => {
-        if (value && typeof value === "string")
-            return value
+        const { title, dept, batchYear } = getValues();
+        
+        if (title && dept && batchYear) {
+            const combined = `${title} ${dept} ${batchYear}`;
+            return combined
                 .trim()
                 .toLowerCase()
                 .replace(/[^a-zA-Z\d\s]+/g, "-")
                 .replace(/\s/g, "-");
-
+        }
+        
+        if (typeof value === "string") {
+             return value
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-zA-Z\d\s]+/g, "-")
+                .replace(/\s/g, "-");
+        }
         return "";
-    }, []);
+    }, [getValues]);
 
     React.useEffect(() => {
         const subscription = watch((value, { name }) => {
-            if (name === "title") {
-                setValue("slug", slugTransform(value.title), { shouldValidate: true });
+            if (name === "title" || name === "dept" || name === "batchYear") {
+                const newSlug = slugTransform(value);
+                setValue("slug", newSlug, { shouldValidate: true });
             }
         });
 
         return () => subscription.unsubscribe();
     }, [watch, slugTransform, setValue]);
 
+
     return (
-        <form onSubmit={handleSubmit(submit)} className="flex flex-wrap">
+        // 💡 Render Fragment to allow Chatbot placement outside form
+        <>
+        <form onSubmit={handleSubmit(submit)} className="flex flex-wrap bg-white p-6 rounded-xl shadow-lg border border-gray-100 mx-auto max-w-7xl mb-12">
             <div className="w-2/3 px-2">
                 <Input
-                    label="Title :"
-                    placeholder="Title"
-                    className="mb-4"
+                    label="Student's Full Name (Title) :"
+                    placeholder="e.g. Chaitanya Mutyala"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("title", { required: true })}
                 />
+                
                 <Input
-                    label="Slug :"
-                    placeholder="Slug"
-                    className="mb-4"
+                    label="Department / Branch :"
+                    placeholder="e.g. Computer Science Engineering (CSE)"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    {...register("dept", { required: true })}
+                />
+                
+                <Input
+                    label="Slug (URL Identifier) :"
+                    placeholder="Auto-generated based on Name, Dept, and Batch"
+                    className="mb-4 bg-gray-100 border border-gray-300 rounded-lg p-2 text-gray-600"
+                    readOnly
                     {...register("slug", { required: true })}
-                    onInput={(e) => {
-                        setValue("slug", slugTransform(e.currentTarget.value), { shouldValidate: true });
-                    }}
                 />
 
-                {/* ✅ New placement fields */}
                 <Input
                     label="Company Name :"
                     placeholder="e.g. Microsoft"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("companyName", { required: true })}
                 />
                 <Input
                     label="Role / Designation :"
                     placeholder="e.g. SDE Intern"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("role", { required: true })}
                 />
                 <Input
                     label="Batch Year :"
                     type="number"
                     placeholder="e.g. 2025"
-                    className="mb-4"
-                    {...register("batchYear", { required: true })}
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    {...register("batchYear", { required: true, valueAsNumber: true })}
                 />
                 <Select
                     options={["On-Campus", "Off-Campus"]}
                     label="Placement Type"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("placementType", { required: true })}
                 />
                 <Input
-                    label="Preparation Tags (comma separated)"
+                    label="Preparation Tags (comma separated):"
                     placeholder="e.g. DSA, Projects, ML"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("tags")}
                 />
 
 
-{/* Add separate RTEs for structured content */}
-<RTE
-    label="About in brief (Intro/Summary) :"
-    name="content" // Use the 'content' field for the Intro/Summary
-    control={control}
-    defaultValue={getValues("content")} 
-/>
-<RTE
-    label="Journey/Process Summary :"
-    name="postJourney"
-    control={control}
-    defaultValue={getValues("postJourney")} 
-/>
-<RTE
-    label="Detailed Experiences :"
-    name="postExperiences"
-    control={control}
-    defaultValue={getValues("postExperiences")} 
-/>
-<RTE
-    label="Preparation Strategy :"
-    name="postStrategy"
-    control={control}
-    defaultValue={getValues("postStrategy")} 
-/>
-<RTE
-    label="Advice for Juniors :"
-    name="postAdvice"
-    control={control}
-    defaultValue={getValues("postAdvice")} 
-/>
+                {/* 💡 The structured fields are now regular text inputs (multi-line via classes) */}
+                <h2 className="text-2xl font-bold mt-8 mb-4 text-indigo-700">Detailed Content Sections</h2>
+                
+                <Input
+                    label="Journey/Process Summary (Textarea) :"
+                    placeholder="Describe your overall recruitment timeline and process steps..."
+                    className="mb-4 border border-gray-300 rounded-lg p-2 min-h-[100px] focus:ring-indigo-500 focus:border-indigo-500" // min-h for visual textarea look
+                    {...register("postJourney")} 
+                    rows={4} // Pass rows prop if your Input component supports rendering textarea
+                />
+                <Input
+                    label="Detailed Experiences (Textarea) :"
+                    placeholder="Detailed notes on interview rounds, questions asked, and challenges faced."
+                    className="mb-4 border border-gray-300 rounded-lg p-2 min-h-[100px] focus:ring-indigo-500 focus:border-indigo-500"
+                    {...register("postExperiences")} 
+                    rows={4}
+                />
+                <Input
+                    label="Preparation Strategy (Textarea) :"
+                    placeholder="What resources did you use? How long did you prepare? Include tips."
+                    className="mb-4 border border-gray-300 rounded-lg p-2 min-h-[100px] focus:ring-indigo-500 focus:border-indigo-500"
+                    {...register("postStrategy")} 
+                    rows={4}
+                />
+                <Input
+                    label="Advice for Juniors (Textarea) :"
+                    placeholder="Specific recommendations for students in junior years."
+                    className="mb-4 border border-gray-300 rounded-lg p-2 min-h-[100px] focus:ring-indigo-500 focus:border-indigo-500"
+                    {...register("postAdvice")} 
+                    rows={4}
+                />
+
+                {/* 💡 RTE is kept ONLY for the Intro/Summary field */}
+                <RTE
+                    label="About in brief (Intro/Summary - Rich Text) :"
+                    name="content"
+                    control={control}
+                    defaultValue={getValues("content")} 
+                />
+                
             </div>
             <div className="w-1/3 px-2">
                 <Input
-                    label="Featured Image :"
+                    label="Student's Photo (Featured Image) :"
                     type="file"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     accept="image/png, image/jpg, image/jpeg, image/gif"
-                    
-                    // 🟢 Keep this as required: false to make the image optional
                     {...register("image", { required: false })} 
-                    
                 />
-                {post && (
-                    <div className="w-full mb-4">
+                {post && post.featuredImage && (
+                    <div className="w-full mb-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-sm font-semibold mb-2">Current Photo:</p>
                         <img
                             src={appwriteService.getFilePreview(post.featuredImage)}
                             alt={post.title}
-                            className="rounded-lg"
+                            className="rounded-lg object-cover w-full h-48"
                         />
                     </div>
                 )}
                 <Select
                     options={["active", "inactive"]}
                     label="Status"
-                    className="mb-4"
+                    className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("status", { required: true })}
                 />
-                <Button type="submit" bgColor={post ? "bg-green-500" : undefined} className="w-full">
-                    {post ? "Update" : "Submit"}
+                {/* 💡 Button Style Update */}
+                <Button 
+                    type="submit" 
+                    bgColor={post ? "bg-indigo-600" : "bg-green-600"} 
+                    className="w-full py-3 text-lg font-semibold rounded-lg shadow-md hover:opacity-90 transition-opacity"
+                >
+                    {post ? "Update Story" : "Submit Story"}
                 </Button>
             </div>
         </form>
+        
+        {/* 💡 RENDER CHATBOT (Authoring Assistant) */}
+        {/* The Chatbot logic is now available on the form page */}
+        <DraftChatBot getFormValues={getValues} />
+        </>
     );
 }

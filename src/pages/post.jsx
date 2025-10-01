@@ -4,148 +4,175 @@ import appwriteService from "../appwrite/config";
 import { Button, Container } from "../components";
 import parse from "html-react-parser";
 import { useSelector } from "react-redux";
-import ChatBot from "../components/ChatBot"; // 💡 1. IMPORT CHATBOT
+import ChatBot from "../components/ChatBot"; 
 
 // Helper function to conditionally render a collapsible section
-const CollapsibleSection = ({ title, content, defaultOpen = false }) => {
-    // Check if content exists and is not just empty HTML tags (like <p></p>)
-    const hasContent = content && (content.replace(/<[^>]*>/g, '').trim().length > 0);
-    
-    // Do not render the section if there is no content
-    if (!hasContent) return null;
+const CollapsibleSection = ({ title, content, defaultOpen = false, icon = '' }) => {
+    // Check if content exists and is not just empty HTML tags (like <p></p>)
+    const hasContent = content && (content.replace(/<[^>]*>/g, '').trim().length > 0);
+    
+    // Do not render the section if there is no content
+    if (!hasContent) return null;
 
-    return (
-        // Using <details> and <summary> for native, accessible collapsing
-        <details className="border rounded-lg p-3" open={defaultOpen}>
-            <summary className="cursor-pointer font-semibold text-lg hover:text-indigo-600 transition">
-                {title}
-            </summary>
-            {/* The actual content, parsed as HTML */}
-            <div className="mt-2 pl-3 border-l-2 border-gray-200">
-                {parse(content)}
-            </div>
-        </details>
-    );
+    return (
+        // Using <details> and <summary> for native, accessible collapsing
+        <details className="py-2 border-b border-gray-100 transition duration-300" open={defaultOpen}>
+            <summary 
+                // 💡 FIX: Removed the large manual arrow (▶)
+                className="cursor-pointer text-lg font-semibold text-indigo-700 hover:text-indigo-800 flex items-center py-2"
+            >
+                {icon && <span className="mr-2 text-xl">{icon}</span>}
+                {title}
+            </summary>
+            {/* The actual content, parsed as HTML, with black color */}
+            <div className="mt-3 pl-6 text-gray-900 leading-relaxed prose max-w-none">
+                {parse(content)}
+            </div>
+        </details>
+    );
 };
 
 
 export default function Post() {
-    const [post, setPost] = useState(null);
-    const { slug } = useParams();
-    const navigate = useNavigate();
+    const [post, setPost] = useState(null);
+    const { slug } = useParams();
+    const navigate = useNavigate();
 
-    const userData = useSelector((state) => state.auth.userData);
-    const isAuthor = post && userData ? post.userID === userData.$id : false;
+    const userData = useSelector((state) => state.auth.userData);
+    const isAuthor = post && userData ? post.userID === userData.$id : false;
 
-    useEffect(() => {
-        if (slug) {
-            // 💡 2. UPDATE: Fetch both the main article and the detail article
-            appwriteService.getPost(slug).then(async (mainPost) => { 
-                if (mainPost) {
-                    // Fetch the detail post from the secondary collection
-                    const detailPost = await appwriteService.getArticleDetails(mainPost.$id);
-                    
-                    // Merge and set the post state
-                    if (detailPost) {
-                        setPost({ ...mainPost, ...detailPost });
-                    } else {
-                        // Handle case where detail post is missing (shouldn't happen, but safe)
-                        setPost(mainPost);
-                    }
-                } else {
-                    navigate("/");
-                }
-            });
-        } else navigate("/");
-    }, [slug, navigate]);
+    useEffect(() => {
+        if (slug) {
+            // Fetch main post AND details post
+            appwriteService.getPost(slug).then(async (mainPost) => { 
+                if (mainPost) {
+                    const detailPost = await appwriteService.getArticleDetails(mainPost.$id);
+                    // Merge and set state
+                    setPost({ ...mainPost, ...(detailPost || {}) }); // Merge safely
+                } else {
+                    navigate("/");
+                }
+            });
+        } else navigate("/");
+    }, [slug, navigate]);
 
-    const deletePost = () => {
-        appwriteService.deletePost(post.$id).then((status) => {
-            if (status) {
-                appwriteService.deleteFile(post.featuredImage);
-                // NOTE: You should also delete the detail document from the secondary collection here!
-                // await appwriteService.deleteArticleDetails(post.$id); 
-                navigate("/");
-            }
-        });
-    };
+    const deletePost = () => {
+        if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+            appwriteService.deletePost(post.$id).then((status) => {
+                if (status) {
+                    appwriteService.deleteFile(post.featuredImage);
+                    // 💡 FIX: Delete the secondary detail document
+                    appwriteService.deleteArticleDetails(post.$id); 
+                    navigate("/");
+                }
+            });
+        }
+    };
 
-    return post ? (
-        <div className="py-8">
-            <Container>
-                {/* ... (Existing code for image and edit/delete buttons) ... */}
-                <div className="w-full flex justify-center mb-4 relative border rounded-xl p-2">
-                    {/* Only render image if featuredImage exists */}
-                    {post.featuredImage && (
-                        <img
-                            src={appwriteService.getFilePreview(post.featuredImage)}
-                            alt={post.title}
-                            className="rounded-xl max-h-96 object-cover"
-                        />
-                    )}
+    return post ? (
+        // 💡 UI FIX: Entire page background is white
+        <div className="py-12 bg-white min-h-screen"> 
+            <Container className="relative">
+                {/* 💡 Edit/Delete Button Placement (Top Right) */}
+                {isAuthor && (
+                    // Positioned absolutely within the content area
+                    <div className="absolute top-30 right-20 flex space-x-3 z-10">
+                        <Link to={`/edit-post/${post.$id}`}>
+                            <Button 
+                                bgColor="bg-green-600 hover:bg-green-700" 
+                                className="px-5 py-2 text-white font-semibold rounded-full shadow-md transition-all"
+                            >
+                                Edit
+                            </Button>
+                        </Link>
+                        <Button 
+                            bgColor="bg-red-600 hover:bg-red-700" 
+                            onClick={deletePost}
+                            className="px-5 py-2 text-white font-semibold rounded-full shadow-md transition-all"
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                )}
+                
+                {/* Main Content Block (Centered, Max-width) */}
+                <div className="max-w-4xl mx-auto pt-10">
+                    
+                    {/* Image and Header */}
+                    <div className="w-full flex flex-col items-center mb-10 pb-6 border-b border-gray-200">
+                        {/* Student Photo (Circular) */}
+                        {post.featuredImage ? (
+                            <img
+                                src={appwriteService.getFilePreview(post.featuredImage)}
+                                alt={post.title}
+                                className="rounded-full h-40 w-40 object-cover border-4 border-indigo-200 shadow-xl mb-4"
+                            />
+                        ) : (
+                            <div className="h-40 w-40 bg-gray-100 rounded-full flex items-center justify-center mb-4 border-4 border-indigo-200 shadow-xl">
+                                <span className="text-gray-500 font-semibold">No Photo</span>
+                            </div>
+                        )}
+                        
+                        {/* Student Name (Title) */}
+                        <h1 className="text-4xl font-extrabold text-gray-900 mb-1 text-center leading-tight">{post.title}</h1>
+                        {/* Role @ Company */}
+                        <p className="text-xl text-gray-700 font-medium text-center">{post.role} @ {post.companyName}</p>
+                    </div>
 
-                    {isAuthor && (
-                        <div className="absolute right-6 top-6">
-                            <Link to={`/edit-post/${post.$id}`}>
-                                <Button bgColor="bg-green-500" className="mr-3">
-                                    Edit
-                                </Button>
-                            </Link>
-                            <Button bgColor="bg-red-500" onClick={deletePost}>
-                                Delete
-                            </Button>
-                        </div>
-                    )}
-                </div>
+                    {/* SIMPLE DETAILS BLOCK (No outer box) */}
+                    <div className="flex justify-center flex-wrap gap-x-8 gap-y-2 text-lg text-gray-700 mb-12 border-b pb-8 border-gray-100">
+                        {post.dept && <p><span className="font-semibold text-gray-800">Department:</span> {post.dept}</p>}
+                        {post.batchYear && <p><span className="font-semibold text-gray-800">Batch:</span> {post.batchYear}</p>}
+                        {post.placementType && <p><span className="font-semibold text-gray-800">Type:</span> {post.placementType}</p>}
+                        {post.tags?.length > 0 && (
+                            <div className="col-span-full mt-2 w-full text-center">
+                                <span className="font-semibold text-gray-800 mr-2">Tags:</span>{" "}
+                                {post.tags.map((tag, index) => (
+                                    <span key={index} className="bg-indigo-50 text-indigo-700 text-sm px-3 py-1 rounded-full font-medium inline-block mr-2 mb-1 shadow-sm">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                <div className="w-full mb-6">
-                    <h1 className="text-4xl font-extrabold text-gray-900">{post.title}</h1>
-                </div>
-
-                {/* Placement Info (Summary Info) */}
-                <div className="mb-8 p-4 border-l-4 border-indigo-500 bg-gray-50 rounded-r-lg shadow-md text-gray-800 space-y-2">
-                    <p><span className="font-semibold text-indigo-700">Company:</span> {post.companyName}</p>
-                    <p><span className="font-semibold text-indigo-700">Role:</span> {post.role}</p>
-                    <p><span className="font-semibold text-indigo-700">Batch:</span> {post.batchYear}</p>
-                    <p><span className="font-semibold text-indigo-700">Type:</span> {post.placementType}</p>
-                    {post.tags?.length > 0 && (
-                        <p className="pt-2 border-t border-gray-200">
-                            <span className="font-semibold text-indigo-700">Tags:</span>{" "}
-                            {post.tags.join(", ")}
-                        </p>
-                    )}
-                </div>
-
-                {/* Structured Collapsible Sections (using the merged post data) */}
-                <div className="structured-content space-y-6">
-
-                    <CollapsibleSection 
-                        title="About in brief (Intro/Summary)" 
-                        content={post.content} 
-                        defaultOpen={true}
-                    />
-                    <CollapsibleSection 
-                        title="🚀 Placement Journey & Process" 
-                        content={post.postJourney} 
-                    />
-                    <CollapsibleSection 
-                        title="🧠 Detailed Experiences & Interview Rounds" 
-                        content={post.postExperiences} 
-                    />
-                    <CollapsibleSection 
-                        title="📚 Preparation Strategy & Resources" 
-                        content={post.postStrategy} 
-                    />
-                    <CollapsibleSection 
-                        title="💡 Advice for Future Juniors" 
-                        content={post.postAdvice} 
-                    />
-                </div>
-            </Container>
-            
-            {/* 💡 3. RENDER CHATBOT (Only renders when post is loaded and available) */}
-            <ChatBot post={post} /> 
-            
-        </div>
-    ) : null;
+                    {/* Structured Collapsible Sections */}
+                    <div className="structured-content space-y-2">
+                        
+                        {/* 💡 Intro/Summary: OPEN by default */}
+                        <CollapsibleSection 
+                            title="About in brief (Intro/Summary)" 
+                            icon="📝" 
+                            content={post.content} 
+                            defaultOpen={true}
+                        />
+                        <CollapsibleSection 
+                            title="🚀 Placement Journey & Process" 
+                            icon="🗺️" 
+                            content={post.postJourney} 
+                        />
+                        <CollapsibleSection 
+                            title="🧠 Detailed Experiences & Interview Rounds" 
+                            icon="💬" 
+                            content={post.postExperiences} 
+                        />
+                        <CollapsibleSection 
+                            title="📚 Preparation Strategy & Resources" 
+                            icon="💡" 
+                            content={post.postStrategy} 
+                        />
+                        <CollapsibleSection 
+                            title="🌟 Advice for Future Juniors" 
+                            icon="🎓" 
+                            content={post.postAdvice} 
+                        />
+                    </div>
+                </div>
+            </Container>
+            
+            {/* 💡 CHATBOT: Renders floating chatbot only if the user is NOT the author */}
+            {!isAuthor && <ChatBot post={post} />} 
+            
+        </div>
+    ) : null;
 }
