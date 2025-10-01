@@ -21,16 +21,16 @@ function Footer() {
     };
 
     return (
-        // 💡 Background is bg-indigo-500
-        <footer className="px-40 w-full bg-indigo-500 text-white shadow-inner mt-12">
+        // 💡 REMOVED px-40 (which caused mobile overflow)
+        <footer className="w-full bg-indigo-500 text-white shadow-inner mt-12"> 
             
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 
-                {/* Main Content Grid - Exactly Three Columns */}
+                {/* 💡 RESPONSIVE FIX: Grid starts as 1 column, switches to 3 on medium screens */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-6 border-b border-indigo-400">
                     
                     {/* Column 1: FEATURES */}
-                    <div>
+                    <div className="col-span-1">
                         <h3 className="text-lg font-bold mb-4 uppercase text-indigo-200">Features</h3>
                         <ul>
                             {footerLinks.features.map((item) => (
@@ -49,7 +49,7 @@ function Footer() {
                     </div>
                     
                     {/* Column 2: SUPPORT */}
-                    <div>
+                    <div className="col-span-1">
                         <h3 className="text-lg font-bold mb-4 uppercase text-indigo-200">Support</h3>
                         <ul>
                             {footerLinks.support.map((item) => (
@@ -68,7 +68,7 @@ function Footer() {
                     </div>
                     
                     {/* Column 3: LEGALS */}
-                    <div>
+                    <div className="col-span-1">
                         <h3 className="text-lg font-bold mb-4 uppercase text-indigo-200">Legals</h3>
                         <ul>
                             {footerLinks.legals.map((item) => (
@@ -84,7 +84,7 @@ function Footer() {
 
                 {/* Footer Bottom - Personal Credit */}
                 <div className="py-4 text-center text-md text-white">
-                    Made with <span className="text-white-400">💙</span> by Chaitanya Mutyala
+                    Made with <span className="text-blue-400">💙</span> by Chaitanya Mutyala
                 </div>
             </div>
         </footer>
