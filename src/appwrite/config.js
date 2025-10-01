@@ -204,8 +204,8 @@ export class Service {
     }
 
     // File Preview
-    getFileView(fileId) {
-        return this.bucket.getFilePreview(
+    getFilePreview(fileId) {
+        return this.bucket.getFileView(
             import.meta.env.VITE_APPWRITE_BUCKET_ID,
             fileId
         );
