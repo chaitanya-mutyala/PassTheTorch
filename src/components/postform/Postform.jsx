@@ -158,7 +158,7 @@ export default function PostForm({ post }) {
                 
                 <Input
                     label="Department / Branch :"
-                    placeholder="e.g. Computer Science Engineering (CSE)"
+                    placeholder="e.g. CSE"
                     className="mb-4 border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
                     {...register("dept", { required: true })}
                 />
