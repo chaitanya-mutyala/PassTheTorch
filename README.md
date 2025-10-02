@@ -37,11 +37,13 @@ The application is built using React (Vite) on the frontend, managed by Redux, a
 - **Format**: `[Student Name]-[Department]-[Batch Year]` (e.g., `p-l-hareesh-cse-2025`).
 
 ### 5. Additional Features
-- Rich Text Editing using **TinyMCE**.
-- Image upload supported via Appwrite Storage.
-- Secure Authentication powered by Appwrite.
-
----
+- Rich Text Editing using **TinyMCE**.  
+- Image upload supported via **Appwrite Storage**.  
+- Secure Authentication powered by **Appwrite**.  
+- **Role-Based Access**:  
+  - **All users (juniors + seniors):** Can view posts and access the home page and all posts page.  
+  - **Seniors:** Can create accounts to access **Add Post** functionality and edit/delete their posts.  
+  - **Juniors:** Can interact with the **AI Q/A chatbot** to ask context-based questions.  
 
 ## ⚙️ Tech Stack
 

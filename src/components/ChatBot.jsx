@@ -155,12 +155,12 @@ export default function ChatBot({ post }) {
                 className="fixed bottom-6 right-6 p-4 rounded-full bg-indigo-600 text-white shadow-lg z-50 hover:bg-indigo-700 transition"
                 aria-label="Toggle Placement Mentor Chat"
             >
-                <MessageSquare size={24} />
+                <MessageSquare size={44} />
             </button>
 
             {/* Chat Window */}
             {isOpen && (
-                <div className="fixed bottom-20 right-6 w-80 max-h-[85vh] bg-white border border-gray-300 rounded-lg shadow-2xl flex flex-col z-50">
+                <div className="fixed bottom-20 right-6 w-150 max-h-[95vh] bg-white border border-gray-300 rounded-lg shadow-2xl flex flex-col z-50">
                     
                     {/* Header */}
                     <div className="p-3 bg-indigo-600 text-white font-bold rounded-t-lg flex justify-between items-center">
